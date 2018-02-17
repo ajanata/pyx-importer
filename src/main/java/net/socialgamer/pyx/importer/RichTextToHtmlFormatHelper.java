@@ -1,3 +1,26 @@
+/**
+ * Copyright (c) 2018, Andy Janata
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this list of conditions
+ *   and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright notice, this list of
+ *   conditions and the following disclaimer in the documentation and/or other materials provided
+ *   with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package net.socialgamer.pyx.importer;
 
 import java.util.LinkedHashMap;
@@ -8,7 +31,10 @@ import org.apache.log4j.Logger;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 
+import com.google.inject.Singleton;
 
+
+@Singleton
 public class RichTextToHtmlFormatHelper {
 
   private static final Logger LOG = Logger.getLogger(RichTextToHtmlFormatHelper.class);
@@ -19,6 +45,8 @@ public class RichTextToHtmlFormatHelper {
 
   // replace these characters with their html entities
   // must be a linked hashmap cuz the iteration order matters
+  // TODO ImmutableMap if that preserves iteration order
+  // TODO move to configuration file to not require a recompile to add more
   private static final Map<String, String> SPECIAL_CHARACTER_REPLACEMENTS = new LinkedHashMap<String, String>() {
     private static final long serialVersionUID = 2444462073349412649L;
     {
@@ -29,6 +57,17 @@ public class RichTextToHtmlFormatHelper {
       put("£", "&pound;");
       put("ñ", "&ntilde;");
       put("™", "&trade;");
+      put("✮", "&#x2605;");
+      put("✩", "&#x2606;");
+      put("’", "'");
+      put("“", "\"");
+      put("”", "\"");
+      put("\n", "<br>");
+      put("⬇", "&darr;");
+      put("⬅", "&larr;");
+      put("➡", "&rarr;");
+      // hack
+      put("__________", "____");
     }
   };
 
@@ -76,6 +115,7 @@ public class RichTextToHtmlFormatHelper {
           }
 
           // there might still be unknown formatting, if it also had something else...
+          // TODO add a config option to not actually do any format processing so this can always trigger?
           if (0 == formatsApplied) {
             LOG.warn(String.format("Unknown formatting applied to segment '%s' of card '%s'.",
                 segment, rtf.getString()));
@@ -87,8 +127,8 @@ public class RichTextToHtmlFormatHelper {
       formatted = rtf.getString();
     }
 
-    final String done = replaceSpecials(formatted);
-    if (!done.equals(rtf.getString())) {
+    final String done = replaceSpecials(formatted).trim();
+    if (!done.equals(rtf.getString().trim())) {
       LOG.trace(String.format("Adjusted input string '%s' to '%s'.", rtf.getString(), done));
     }
     return done;

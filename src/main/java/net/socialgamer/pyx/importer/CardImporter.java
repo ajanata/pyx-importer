@@ -29,22 +29,31 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.log4j.Logger;
+
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Stage;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import net.socialgamer.pyx.importer.filetypes.ConfigurationException;
+import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
+import net.socialgamer.pyx.importer.filetypes.FileType;
+import net.socialgamer.pyx.importer.filetypes.FileType.ParseResult;
+import net.socialgamer.pyx.importer.inject.ImporterModule;
 
 
 public class CardImporter {
+  // TODO this class needs to use logger
+  private static final Logger LOG = Logger.getLogger(CardImporter.class);
 
   private static Properties loadProperties(final File file) throws IOException {
     final Properties props = new Properties();
@@ -71,11 +80,11 @@ public class CardImporter {
         .describedAs("file")
         .ofType(File.class)
         .defaultsTo(new File("importer.properties"));
-    final OptionSpec<File> excelFile = optParser
-        .accepts("excel", "Excel input file")
-        .withRequiredArg()
-        .describedAs("file")
-        .ofType(File.class);
+    //    final OptionSpec<File> excelFile = optParser
+    //        .accepts("excel", "Excel input file")
+    //        .withRequiredArg()
+    //        .describedAs("file")
+    //        .ofType(File.class);
     //    final OptionSpec<File> columnarWhite = optParser
     //        .accepts("columnar-white", "Columnar-format white cards")
     //        .withRequiredArg()
@@ -87,68 +96,82 @@ public class CardImporter {
       showUsageAndExit(optParser, System.out, 0);
     }
 
-    // TODO when we need properties file
-    //    final File propsFile = opts.valueOf(conf);
-    //    if (!propsFile.canRead()) {
-    //      System.err.println(String.format("Unable to open configuration file %s for reading.",
-    //          propsFile.getAbsolutePath()));
-    //      System.err.println();
-    //      showUsageAndExit(optParser, System.err, 1);
-    //    }
-
-    // TODO when other formats supported, make sure at least one of them is present
-    //    if (!opts.has(columnarWhite)) {
-    //      System.err.println("columnar-white option must be specified.");
-    //      showUsageAndExit(optParser, System.err, 1);
-    //    } else {
-    //      for (final File file : opts.valuesOf(columnarWhite)) {
-    //        final ColumnarParser parser = new ColumnarParser(file);
-    //      }
-    //    }
-    if (!opts.has(excelFile)) {
-      System.err.println("excel option must be specified.");
+    final File propsFile = opts.valueOf(conf);
+    if (!propsFile.canRead()) {
+      System.err.println(String.format("Unable to open configuration file %s for reading.",
+          propsFile.getAbsolutePath()));
+      System.err.println();
       showUsageAndExit(optParser, System.err, 1);
-    } else {
-      // make sure all of the files are valid first
-      for (final File file : opts.valuesOf(excelFile)) {
-        if (!file.canRead()) {
-          System.err.println(
-              String.format("Unable to open Excel file '%s' for reading.", file.getAbsolutePath()));
-          showUsageAndExit(optParser, System.err, 1);
+    }
+
+    // Load configuration
+    final Properties appProps;
+    try {
+      appProps = loadProperties(propsFile);
+    } catch (final IOException e) {
+      throw new RuntimeException("Unable to load properties", e);
+    }
+
+    // Create injector
+    final Injector injector = Guice.createInjector(Stage.PRODUCTION, new ImporterModule(appProps));
+
+    final int fileCount = Integer.valueOf(appProps.getProperty("import.file.count", "0"));
+    if (fileCount <= 0) {
+      System.err.println("Configuration file must specify positive import.file.count.");
+      System.exit(1);
+    }
+
+    // make sure all of the files are valid before we start doing anything
+    final ExcelFileType.Factory excelFactory = injector.getInstance(ExcelFileType.Factory.class);
+    final List<FileType> fileTypes = new ArrayList<>(fileCount);
+    for (int i = 0; i < fileCount; i++) {
+      final String fileType = appProps.getProperty(String.format("import.file[%d].type", i));
+      final FileType impl;
+      switch (fileType) {
+        case "excel":
+          impl = excelFactory.create(i);
+          break;
+        default:
+          LOG.error(String.format("Unknown file type %s for file %d.", fileType, i));
+          System.exit(1);
+          impl = null;
+      }
+      try {
+        impl.validate();
+      } catch (final ConfigurationException e) {
+        LOG.error(
+            String.format("File %d configuration validation failed: %s", i, e.getMessage()));
+        System.exit(1);
+      }
+      fileTypes.add(impl);
+    }
+
+    // and now process them
+    for (final FileType fileType : fileTypes) {
+      final ParseResult result = fileType.process();
+
+      final Set<String> decks = new HashSet<>();
+      decks.addAll(result.getWhiteCards().keySet());
+      decks.addAll(result.getBlackCards().keySet());
+      System.out.println("Decks:");
+      for (final String deck : decks) {
+        System.out.println(">" + deck);
+      }
+
+      System.out.println("White cards:");
+      for (final Entry<String, Set<String>> entry : result.getWhiteCards().entrySet()) {
+        System.out.println(">" + entry.getKey());
+        for (final String card : entry.getValue()) {
+          System.out.println(">>" + card);
         }
       }
 
-      final RichTextToHtmlFormatHelper helper = new RichTextToHtmlFormatHelper();
-      // now that we know they're all valid, start doing stuff
-      for (final File file : opts.valuesOf(excelFile)) {
-        // TODO put this in its own class
-        final FileInputStream is = new FileInputStream(file);
-        final Workbook workbook = new XSSFWorkbook(is);
-        final Sheet sheet = workbook.getSheetAt(0);
-
-        final List<String> columnHeadings = new ArrayList<>();
-        final List<List<String>> values = new ArrayList<>();
-        // TODO this needs to handle empty rows and cells
-        for (final Row row : sheet) {
-          final boolean firstRow = columnHeadings.isEmpty();
-          final List<String> rowValues = new ArrayList<>();
-
-          for (final Cell cell : row) {
-            if (firstRow) {
-              columnHeadings.add(cell.getStringCellValue());
-            } else {
-              final XSSFRichTextString rtf = (XSSFRichTextString) cell.getRichStringCellValue();
-              final String text = helper.format(rtf);
-              rowValues.add(text);
-            }
-          }
-
-          if (!firstRow) {
-            values.add(rowValues);
-          }
+      System.out.println("Black cards:");
+      for (final Entry<String, Set<String>> entry : result.getBlackCards().entrySet()) {
+        System.out.println(">" + entry.getKey());
+        for (final String card : entry.getValue()) {
+          System.out.println(">>" + card);
         }
-        values.size();
-        System.out.println(values);
       }
     }
   }
