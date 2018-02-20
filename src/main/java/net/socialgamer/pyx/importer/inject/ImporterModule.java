@@ -23,9 +23,17 @@
 
 package net.socialgamer.pyx.importer.inject;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import com.google.inject.throwingproviders.ThrowingProviderBinder;
@@ -50,5 +58,54 @@ public class ImporterModule extends AbstractModule {
 
     Names.bindProperties(binder(), props);
     bind(Properties.class).toInstance(props);
+  }
+
+  @Provides
+  @Singleton
+  @SpecialCharacterReplacements
+  public LinkedHashMap<String, String> provideSpecialCharacterReplacements() {
+    // iteration order matters for this
+    final LinkedHashMap<String, String> map = new LinkedHashMap<>();
+    final int count = Integer.parseInt(props.getProperty("replace.count", "0"));
+    for (int i = 0; i < count; i++) {
+      final String from = props.getProperty(String.format("replace[%d].from", i), "");
+      if (from.isEmpty()) {
+        throw new RuntimeException(
+            "Special character replacement index " + i + " not found or is empty.");
+      }
+      final String to = props.getProperty(String.format("replace[%d].to", i), "");
+      map.put(from, to);
+    }
+    return map;
+  }
+
+  @Provides
+  @Singleton
+  @DeckNameReplacements
+  public Map<String, String> provideDeckNameReplacements() {
+    final Map<String, String> map = new HashMap<>();
+    final int count = Integer.parseInt(props.getProperty("deckname.count", "0"));
+    for (int i = 0; i < count; i++) {
+      final String from = props.getProperty(String.format("deckname[%d].from", i), "");
+      if (from.isEmpty()) {
+        throw new RuntimeException(
+            "Deck name replacement index " + i + " not found or is empty.");
+      }
+      final String to = props.getProperty(String.format("deckname[%d].to", i), "");
+      map.put(from, to);
+    }
+    return map;
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface SpecialCharacterReplacements {
+    //
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface DeckNameReplacements {
+    //
   }
 }

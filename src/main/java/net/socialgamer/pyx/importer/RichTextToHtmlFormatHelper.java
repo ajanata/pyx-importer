@@ -31,7 +31,11 @@ import org.apache.log4j.Logger;
 import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+
+import net.socialgamer.pyx.importer.inject.ImporterModule.SpecialCharacterReplacements;
 
 
 @Singleton
@@ -43,33 +47,17 @@ public class RichTextToHtmlFormatHelper {
   // replacement
   private static final char LAST_ASCII_CHARACTER = '~';
 
-  // replace these characters with their html entities
-  // must be a linked hashmap cuz the iteration order matters
-  // TODO ImmutableMap if that preserves iteration order
-  // TODO move to configuration file to not require a recompile to add more
-  private static final Map<String, String> SPECIAL_CHARACTER_REPLACEMENTS = new LinkedHashMap<String, String>() {
-    private static final long serialVersionUID = 2444462073349412649L;
-    {
-      // must be first or it'll break everything else
-      put("&", "&amp;");
-      put("®", "&reg;");
-      put("é", "&eacute;");
-      put("£", "&pound;");
-      put("ñ", "&ntilde;");
-      put("™", "&trade;");
-      put("✮", "&#x2605;");
-      put("✩", "&#x2606;");
-      put("’", "'");
-      put("“", "\"");
-      put("”", "\"");
-      put("\n", "<br>");
-      put("⬇", "&darr;");
-      put("⬅", "&larr;");
-      put("➡", "&rarr;");
-      // hack
-      put("__________", "____");
-    }
-  };
+  /**
+   * Replace these characters and character sequences with HTML entities or tags. Iteration order
+   * matters.
+   */
+  private final Map<String, String> replacements;
+
+  @Inject
+  public RichTextToHtmlFormatHelper(
+      @SpecialCharacterReplacements final LinkedHashMap<String, String> replacements) {
+    this.replacements = ImmutableMap.copyOf(replacements);
+  }
 
   public String format(final XSSFRichTextString rtf) {
     final String formatted;
@@ -77,8 +65,9 @@ public class RichTextToHtmlFormatHelper {
       LOG.trace(String.format("Processing formatting for %s", rtf.getString()));
       final StringBuilder builder = new StringBuilder();
       for (int i = 0; i < rtf.numFormattingRuns(); i++) {
-        final String segment = rtf.getString().substring(rtf.getIndexOfFormattingRun(i),
-            rtf.getIndexOfFormattingRun(i) + rtf.getLengthOfFormattingRun(i));
+        final String segment = replaceSpecials(
+            rtf.getString().substring(rtf.getIndexOfFormattingRun(i),
+                rtf.getIndexOfFormattingRun(i) + rtf.getLengthOfFormattingRun(i)));
         // will be null for normal font
         final XSSFFont font = rtf.getFontOfFormattingRun(i);
         if (null == font) {
@@ -94,7 +83,6 @@ public class RichTextToHtmlFormatHelper {
             formatsApplied++;
             builder.append("<i>");
           }
-          // TODO check??
           if (font.getUnderline() > 0) {
             formatsApplied++;
             builder.append("<u>");
@@ -103,7 +91,6 @@ public class RichTextToHtmlFormatHelper {
           builder.append(segment);
 
           // reverse order
-          // TODO check??
           if (font.getUnderline() > 0) {
             builder.append("</u>");
           }
@@ -124,10 +111,10 @@ public class RichTextToHtmlFormatHelper {
       }
       formatted = builder.toString();
     } else {
-      formatted = rtf.getString();
+      formatted = replaceSpecials(rtf.getString());
     }
 
-    final String done = replaceSpecials(formatted).trim();
+    final String done = normalizeBlanks(formatted).trim();
     if (!done.equals(rtf.getString().trim())) {
       LOG.trace(String.format("Adjusted input string '%s' to '%s'.", rtf.getString(), done));
     }
@@ -136,7 +123,7 @@ public class RichTextToHtmlFormatHelper {
 
   private String replaceSpecials(final String str) {
     String specialsReplaced = str;
-    for (final Entry<String, String> entry : SPECIAL_CHARACTER_REPLACEMENTS.entrySet()) {
+    for (final Entry<String, String> entry : replacements.entrySet()) {
       if (specialsReplaced.contains(entry.getKey())) {
         specialsReplaced = specialsReplaced.replace(entry.getKey(), entry.getValue());
       }
@@ -151,5 +138,10 @@ public class RichTextToHtmlFormatHelper {
       }
     }
     return specialsReplaced;
+  }
+
+  private String normalizeBlanks(final String str) {
+    // replace more than 4 underscores with 4 underscores
+    return str.replaceAll("____+", "____");
   }
 }

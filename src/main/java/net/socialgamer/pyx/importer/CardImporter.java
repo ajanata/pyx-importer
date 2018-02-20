@@ -26,7 +26,10 @@ package net.socialgamer.pyx.importer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.Reader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -52,12 +55,14 @@ import net.socialgamer.pyx.importer.inject.ImporterModule;
 
 
 public class CardImporter {
-  // TODO this class needs to use logger
   private static final Logger LOG = Logger.getLogger(CardImporter.class);
 
   private static Properties loadProperties(final File file) throws IOException {
     final Properties props = new Properties();
-    props.load(new FileInputStream(file));
+    try (Reader reader = new InputStreamReader(new FileInputStream(file),
+        Charset.forName("UTF-8"))) {
+      props.load(reader);
+    }
     return props;
   }
 
@@ -153,24 +158,36 @@ public class CardImporter {
       final Set<String> decks = new HashSet<>();
       decks.addAll(result.getWhiteCards().keySet());
       decks.addAll(result.getBlackCards().keySet());
-      System.out.println("Decks:");
+      LOG.info("Decks:");
       for (final String deck : decks) {
-        System.out.println(">" + deck);
+        final int blackCount;
+        if (result.getBlackCards().containsKey(deck)) {
+          blackCount = result.getBlackCards().get(deck).size();
+        } else {
+          blackCount = 0;
+        }
+        final int whiteCount;
+        if (result.getWhiteCards().containsKey(deck)) {
+          whiteCount = result.getWhiteCards().get(deck).size();
+        } else {
+          whiteCount = 0;
+        }
+        LOG.info(String.format(">%s (black: %d, white: %d)", deck, blackCount, whiteCount));
       }
 
-      System.out.println("White cards:");
+      LOG.trace("White cards:");
       for (final Entry<String, Set<String>> entry : result.getWhiteCards().entrySet()) {
-        System.out.println(">" + entry.getKey());
+        LOG.trace(">" + entry.getKey());
         for (final String card : entry.getValue()) {
-          System.out.println(">>" + card);
+          LOG.trace(">>" + card);
         }
       }
 
-      System.out.println("Black cards:");
+      LOG.trace("Black cards:");
       for (final Entry<String, Set<String>> entry : result.getBlackCards().entrySet()) {
-        System.out.println(">" + entry.getKey());
+        LOG.trace(">" + entry.getKey());
         for (final String card : entry.getValue()) {
-          System.out.println(">>" + card);
+          LOG.trace(">>" + card);
         }
       }
     }
