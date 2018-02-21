@@ -23,15 +23,8 @@
 
 package net.socialgamer.pyx.importer;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.Reader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -44,9 +37,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import joptsimple.OptionSpec;
 import net.socialgamer.pyx.importer.filetypes.ConfigurationException;
 import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
 import net.socialgamer.pyx.importer.filetypes.FileType;
@@ -57,68 +47,17 @@ import net.socialgamer.pyx.importer.inject.ImporterModule;
 public class CardImporter {
   private static final Logger LOG = Logger.getLogger(CardImporter.class);
 
-  private static Properties loadProperties(final File file) throws IOException {
-    final Properties props = new Properties();
-    try (Reader reader = new InputStreamReader(new FileInputStream(file),
-        Charset.forName("UTF-8"))) {
-      props.load(reader);
-    }
-    return props;
-  }
-
-  private static void showUsageAndExit(final OptionParser optParser, final PrintStream sink,
-      final int exitCode) throws IOException {
-    sink.println(String.format("USAGE: %s [options]", CardImporter.class.getSimpleName()));
-    sink.println();
-    optParser.printHelpOn(sink);
-    System.exit(exitCode);
-  }
-
   public static void main(final String[] args) throws IOException, InterruptedException {
     // Process command-line options
-    final OptionParser optParser = new OptionParser(false);
-    final OptionSpec<Void> help = optParser.acceptsAll(Arrays.asList("h", "help"),
-        "Print this usage information.");
-    final OptionSpec<File> conf = optParser
-        .acceptsAll(Arrays.asList("c", "configuration"), "Configuration file to use.")
-        .withRequiredArg()
-        .describedAs("file")
-        .ofType(File.class)
-        .defaultsTo(new File("importer.properties"));
-    //    final OptionSpec<File> excelFile = optParser
-    //        .accepts("excel", "Excel input file")
-    //        .withRequiredArg()
-    //        .describedAs("file")
-    //        .ofType(File.class);
-    //    final OptionSpec<File> columnarWhite = optParser
-    //        .accepts("columnar-white", "Columnar-format white cards")
-    //        .withRequiredArg()
-    //        .describedAs("file")
-    //        .ofType(File.class);
-
-    final OptionSet opts = optParser.parse(args);
-    if (opts.has(help)) {
-      showUsageAndExit(optParser, System.out, 0);
-    }
-
-    final File propsFile = opts.valueOf(conf);
-    if (!propsFile.canRead()) {
-      System.err.println(String.format("Unable to open configuration file %s for reading.",
-          propsFile.getAbsolutePath()));
-      System.err.println();
-      showUsageAndExit(optParser, System.err, 1);
-    }
-
-    // Load configuration
-    final Properties appProps;
-    try {
-      appProps = loadProperties(propsFile);
-    } catch (final IOException e) {
-      throw new RuntimeException("Unable to load properties", e);
+    final Options opts = new Options(args);
+    if (opts.wantsHelp()) {
+      opts.showUsageAndExit(System.out, 0);
     }
 
     // Create injector
-    final Injector injector = Guice.createInjector(Stage.PRODUCTION, new ImporterModule(appProps));
+    final Injector injector = Guice.createInjector(Stage.PRODUCTION, new ImporterModule(opts));
+    // TODO make this better?
+    final Properties appProps = injector.getInstance(Properties.class);
 
     final int fileCount = Integer.valueOf(appProps.getProperty("import.file.count", "0"));
     if (fileCount <= 0) {

@@ -42,7 +42,7 @@ public class RichTextToHtmlFormatHelperTest {
   @SuppressWarnings("serial")
   @Before
   public void beforeTest() {
-    helper = new RichTextToHtmlFormatHelper(new LinkedHashMap<String, String>() {
+    helper = new RichTextToHtmlFormatHelper(true, new LinkedHashMap<String, String>() {
       {
         put("&", "&amp;");
         put("<", "&lt;");

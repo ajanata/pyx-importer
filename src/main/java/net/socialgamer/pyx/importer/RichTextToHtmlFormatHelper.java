@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import net.socialgamer.pyx.importer.inject.ImporterModule.FormatText;
 import net.socialgamer.pyx.importer.inject.ImporterModule.SpecialCharacterReplacements;
 
 
@@ -47,6 +48,8 @@ public class RichTextToHtmlFormatHelper {
   // replacement
   private static final char LAST_ASCII_CHARACTER = '~';
 
+  private final boolean processFormatting;
+
   /**
    * Replace these characters and character sequences with HTML entities or tags. Iteration order
    * matters.
@@ -54,8 +57,9 @@ public class RichTextToHtmlFormatHelper {
   private final Map<String, String> replacements;
 
   @Inject
-  public RichTextToHtmlFormatHelper(
+  public RichTextToHtmlFormatHelper(@FormatText final boolean processFormatting,
       @SpecialCharacterReplacements final LinkedHashMap<String, String> replacements) {
+    this.processFormatting = processFormatting;
     this.replacements = ImmutableMap.copyOf(replacements);
   }
 
@@ -74,35 +78,36 @@ public class RichTextToHtmlFormatHelper {
           builder.append(segment);
         } else {
           int formatsApplied = 0;
-          // figure out how to format it
-          if (font.getBold()) {
-            formatsApplied++;
-            builder.append("<b>");
-          }
-          if (font.getItalic()) {
-            formatsApplied++;
-            builder.append("<i>");
-          }
-          if (font.getUnderline() > 0) {
-            formatsApplied++;
-            builder.append("<u>");
-          }
+          if (processFormatting) {
+            // figure out how to format it
+            if (font.getBold()) {
+              formatsApplied++;
+              builder.append("<b>");
+            }
+            if (font.getItalic()) {
+              formatsApplied++;
+              builder.append("<i>");
+            }
+            if (font.getUnderline() > 0) {
+              formatsApplied++;
+              builder.append("<u>");
+            }
 
-          builder.append(segment);
+            builder.append(segment);
 
-          // reverse order
-          if (font.getUnderline() > 0) {
-            builder.append("</u>");
-          }
-          if (font.getItalic()) {
-            builder.append("</i>");
-          }
-          if (font.getBold()) {
-            builder.append("</b>");
+            // reverse order
+            if (font.getUnderline() > 0) {
+              builder.append("</u>");
+            }
+            if (font.getItalic()) {
+              builder.append("</i>");
+            }
+            if (font.getBold()) {
+              builder.append("</b>");
+            }
           }
 
           // there might still be unknown formatting, if it also had something else...
-          // TODO add a config option to not actually do any format processing so this can always trigger?
           if (0 == formatsApplied) {
             LOG.warn(String.format("Unknown formatting applied to segment '%s' of card '%s'.",
                 segment, rtf.getString()));

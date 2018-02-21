@@ -23,8 +23,14 @@
 
 package net.socialgamer.pyx.importer.inject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -38,20 +44,46 @@ import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import com.google.inject.throwingproviders.ThrowingProviderBinder;
 
+import net.socialgamer.pyx.importer.Options;
 import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
 import net.socialgamer.pyx.importer.parsers.SheetParser;
 
 
 public class ImporterModule extends AbstractModule {
 
-  private final Properties props;
+  private final Options opts;
+  private Properties props;
 
-  public ImporterModule(final Properties props) {
-    this.props = props;
+  public ImporterModule(final Options opts) throws IOException {
+    this.opts = opts;
+
+    final File propsFile = opts.getConfFile();
+    if (!propsFile.canRead()) {
+      System.err.println(String.format("Unable to open configuration file %s for reading.",
+          propsFile.getAbsolutePath()));
+      System.err.println();
+      opts.showUsageAndExit(System.err, 1);
+    }
+  }
+
+  private static Properties loadProperties(final File file) throws IOException {
+    final Properties props = new Properties();
+    try (Reader reader = new InputStreamReader(new FileInputStream(file),
+        Charset.forName("UTF-8"))) {
+      props.load(reader);
+    }
+    return props;
   }
 
   @Override
   protected void configure() {
+    // Load configuration
+    try {
+      props = loadProperties(opts.getConfFile());
+    } catch (final IOException e) {
+      throw new RuntimeException("Unable to load properties", e);
+    }
+
     install(ThrowingProviderBinder.forModule(this));
     install(new FactoryModuleBuilder().build(ExcelFileType.Factory.class));
     install(new FactoryModuleBuilder().build(SheetParser.Factory.class));
@@ -97,6 +129,20 @@ public class ImporterModule extends AbstractModule {
     return map;
   }
 
+  @Provides
+  @Singleton
+  @FormatText
+  public boolean provideFormatText() {
+    return opts.wantsFormatText();
+  }
+
+  @Provides
+  @Singleton
+  @SaveToDatabase
+  public boolean provideSaveToDatabase() {
+    return opts.wantsSaveToDatabase();
+  }
+
   @BindingAnnotation
   @Retention(RetentionPolicy.RUNTIME)
   public @interface SpecialCharacterReplacements {
@@ -106,6 +152,18 @@ public class ImporterModule extends AbstractModule {
   @BindingAnnotation
   @Retention(RetentionPolicy.RUNTIME)
   public @interface DeckNameReplacements {
+    //
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface FormatText {
+    //
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface SaveToDatabase {
     //
   }
 }
