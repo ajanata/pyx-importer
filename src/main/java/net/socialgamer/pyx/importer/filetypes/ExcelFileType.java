@@ -39,6 +39,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
+import net.socialgamer.pyx.importer.data.ParseResult;
 import net.socialgamer.pyx.importer.parsers.SheetParser;
 
 

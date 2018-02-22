@@ -21,39 +21,28 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.socialgamer.pyx.importer.filetypes;
+package net.socialgamer.pyx.importer.data;
 
-import java.util.Properties;
+public class DeckInfo {
+  private final String id;
+  private final String name;
+  private final String watermark;
 
-import net.socialgamer.pyx.importer.data.ParseResult;
-
-
-public abstract class FileType {
-  private static final String PROP_PREFIX = "import.file";
-
-  private final Properties props;
-  private final int configIndex;
-
-  public FileType(final Properties props, final int configIndex) {
-    this.props = props;
-    this.configIndex = configIndex;
+  public DeckInfo(final String id, final String name, final String watermark) {
+    this.id = id;
+    this.name = name;
+    this.watermark = watermark;
   }
 
-  /**
-   * Validate that the configuration for this file type is valid.
-   * @throws ConfigurationException Configuration is invalid; the exception will contain a reason
-   * why.
-   */
-  public abstract void validate() throws ConfigurationException;
-
-  public abstract ParseResult process();
-
-  protected String getProp(final String name) {
-    return props.getProperty(String.format("%s[%d].%s", PROP_PREFIX, configIndex, name));
+  public String getId() {
+    return id;
   }
 
-  protected String getProp(final String name, final String defaultValue) {
-    return props.getProperty(String.format("%s[%d].%s", PROP_PREFIX, configIndex, name),
-        defaultValue);
+  public String getName() {
+    return name;
+  }
+
+  public String getWatermark() {
+    return watermark;
   }
 }

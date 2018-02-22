@@ -68,7 +68,7 @@ public class SheetParser implements Parser {
     this.nextColNamedCount = nextColNamedCount;
     this.sheet = sheet;
     this.formatHelper = formatHelper;
-    LOG.trace(String.format("Created sheet parser for %s.", sheet.getSheetName()));
+    LOG.info(String.format("Created sheet parser for %s.", sheet.getSheetName()));
   }
 
   public interface Factory {

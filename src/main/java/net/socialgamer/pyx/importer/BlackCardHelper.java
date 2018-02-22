@@ -21,39 +21,33 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.socialgamer.pyx.importer.filetypes;
+package net.socialgamer.pyx.importer;
 
-import java.util.Properties;
-
-import net.socialgamer.pyx.importer.data.ParseResult;
+import com.google.inject.Singleton;
 
 
-public abstract class FileType {
-  private static final String PROP_PREFIX = "import.file";
-
-  private final Properties props;
-  private final int configIndex;
-
-  public FileType(final Properties props, final int configIndex) {
-    this.props = props;
-    this.configIndex = configIndex;
+@Singleton
+public class BlackCardHelper {
+  public int pick(final String text) {
+    // remove trailing punctuation so trailing blanks really do occur at the end
+    final String noPunct = text.replace("!", "").replace("?", "").replace(".", "");
+    // make it include trailing blank segments
+    final String[] split = noPunct.split("____+", -1);
+    if (split.length == 1) {
+      // no blanks at all
+      return 1;
+    } else {
+      // one or more blanks, will cause an extra segment
+      return split.length - 1;
+    }
   }
 
-  /**
-   * Validate that the configuration for this file type is valid.
-   * @throws ConfigurationException Configuration is invalid; the exception will contain a reason
-   * why.
-   */
-  public abstract void validate() throws ConfigurationException;
-
-  public abstract ParseResult process();
-
-  protected String getProp(final String name) {
-    return props.getProperty(String.format("%s[%d].%s", PROP_PREFIX, configIndex, name));
-  }
-
-  protected String getProp(final String name, final String defaultValue) {
-    return props.getProperty(String.format("%s[%d].%s", PROP_PREFIX, configIndex, name),
-        defaultValue);
+  public int draw(final String text) {
+    final int pick = pick(text);
+    if (pick > 2) {
+      return pick - 1;
+    } else {
+      return 0;
+    }
   }
 }

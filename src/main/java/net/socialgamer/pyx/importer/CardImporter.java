@@ -25,11 +25,8 @@ package net.socialgamer.pyx.importer;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.log4j.Logger;
 
@@ -37,11 +34,12 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 
+import net.socialgamer.pyx.importer.data.ParseResult;
 import net.socialgamer.pyx.importer.filetypes.ConfigurationException;
 import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
 import net.socialgamer.pyx.importer.filetypes.FileType;
-import net.socialgamer.pyx.importer.filetypes.FileType.ParseResult;
 import net.socialgamer.pyx.importer.inject.ImporterModule;
+import net.socialgamer.pyx.importer.output.PostgresOutputter;
 
 
 public class CardImporter {
@@ -90,45 +88,10 @@ public class CardImporter {
       fileTypes.add(impl);
     }
 
-    // and now process them
-    for (final FileType fileType : fileTypes) {
-      final ParseResult result = fileType.process();
+    final ImportHandler handler = injector.getInstance(ImportHandler.Factory.class)
+        .create(fileTypes);
 
-      final Set<String> decks = new HashSet<>();
-      decks.addAll(result.getWhiteCards().keySet());
-      decks.addAll(result.getBlackCards().keySet());
-      LOG.info("Decks:");
-      for (final String deck : decks) {
-        final int blackCount;
-        if (result.getBlackCards().containsKey(deck)) {
-          blackCount = result.getBlackCards().get(deck).size();
-        } else {
-          blackCount = 0;
-        }
-        final int whiteCount;
-        if (result.getWhiteCards().containsKey(deck)) {
-          whiteCount = result.getWhiteCards().get(deck).size();
-        } else {
-          whiteCount = 0;
-        }
-        LOG.info(String.format(">%s (black: %d, white: %d)", deck, blackCount, whiteCount));
-      }
-
-      LOG.trace("White cards:");
-      for (final Entry<String, Set<String>> entry : result.getWhiteCards().entrySet()) {
-        LOG.trace(">" + entry.getKey());
-        for (final String card : entry.getValue()) {
-          LOG.trace(">>" + card);
-        }
-      }
-
-      LOG.trace("Black cards:");
-      for (final Entry<String, Set<String>> entry : result.getBlackCards().entrySet()) {
-        LOG.trace(">" + entry.getKey());
-        for (final String card : entry.getValue()) {
-          LOG.trace(">>" + card);
-        }
-      }
-    }
+    final ParseResult result = handler.process();
+    injector.getInstance(PostgresOutputter.class).output(result);
   }
 }

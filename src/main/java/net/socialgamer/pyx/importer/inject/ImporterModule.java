@@ -36,15 +36,25 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.google.inject.throwingproviders.ThrowingProviderBinder;
 
+import net.socialgamer.cah.db.PyxBlackCard;
+import net.socialgamer.cah.db.PyxCardSet;
+import net.socialgamer.cah.db.PyxWhiteCard;
+import net.socialgamer.pyx.importer.ImportHandler;
 import net.socialgamer.pyx.importer.Options;
+import net.socialgamer.pyx.importer.data.DeckInfo;
 import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
 import net.socialgamer.pyx.importer.parsers.SheetParser;
 
@@ -87,9 +97,45 @@ public class ImporterModule extends AbstractModule {
     install(ThrowingProviderBinder.forModule(this));
     install(new FactoryModuleBuilder().build(ExcelFileType.Factory.class));
     install(new FactoryModuleBuilder().build(SheetParser.Factory.class));
+    install(new FactoryModuleBuilder().build(ImportHandler.Factory.class));
 
     Names.bindProperties(binder(), props);
     bind(Properties.class).toInstance(props);
+  }
+
+  @Provides
+  @Singleton
+  public SessionFactory provideSessionFactory(@Named("hibernate.dialect") final String dialect,
+      @Named("hibernate.driver_class") final String driverClass,
+      @Named("hibernate.url") final String connectionUrl,
+      @Named("hibernate.username") final String username,
+      @Named("hibernate.password") final String password,
+      @Named("hibernate.sql.show") final String showSql,
+      @Named("hibernate.sql.format") final String formatSql) {
+    final Configuration config = new Configuration();
+
+    config.setProperty("hibernate.dialect", dialect);
+    config.setProperty("hibernate.connection.driver_class", driverClass);
+    config.setProperty("hibernate.connection.url", connectionUrl);
+    config.setProperty("hibernate.connection.username", username);
+    config.setProperty("hibernate.connection.password", password);
+    config.setProperty("hibernate.cache.provider_class",
+        "org.hibernate.cache.HashtableCacheProvider");
+    config.setProperty("transaction.factory_class",
+        "org.hiberante.transaction.JDBCTransactionFactory");
+    config.setProperty("show_sql", showSql);
+    config.setProperty("format_sql", formatSql);
+
+    config.addAnnotatedClass(PyxBlackCard.class);
+    config.addAnnotatedClass(PyxWhiteCard.class);
+    config.addAnnotatedClass(PyxCardSet.class);
+
+    return config.buildSessionFactory();
+  }
+
+  @Provides
+  public Session provideSession(final SessionFactory sessionFactory) {
+    return sessionFactory.openSession();
   }
 
   @Provides
@@ -113,18 +159,20 @@ public class ImporterModule extends AbstractModule {
 
   @Provides
   @Singleton
-  @DeckNameReplacements
-  public Map<String, String> provideDeckNameReplacements() {
-    final Map<String, String> map = new HashMap<>();
-    final int count = Integer.parseInt(props.getProperty("deckname.count", "0"));
+  public Map<String, DeckInfo> provideDeckInfo() {
+    final Map<String, DeckInfo> map = new HashMap<>();
+    final int count = Integer.parseInt(props.getProperty("deckinfo.count", "0"));
     for (int i = 0; i < count; i++) {
-      final String from = props.getProperty(String.format("deckname[%d].from", i), "");
-      if (from.isEmpty()) {
-        throw new RuntimeException(
-            "Deck name replacement index " + i + " not found or is empty.");
+      final String id = props.getProperty(String.format("deckinfo[%d].id", i), "");
+      if (id.isEmpty()) {
+        throw new RuntimeException("Deck info id for index " + i + " not found or is empty.");
       }
-      final String to = props.getProperty(String.format("deckname[%d].to", i), "");
-      map.put(from, to);
+      final String name = props.getProperty(String.format("deckinfo[%d].name", i), id);
+      final String watermark = props.getProperty(String.format("deckinfo[%d].watermark", i), "");
+      final DeckInfo info = new DeckInfo(id, name, watermark);
+      map.put(id, info);
+      // include it under any remapped name as well
+      map.put(name, info);
     }
     return map;
   }
@@ -146,12 +194,6 @@ public class ImporterModule extends AbstractModule {
   @BindingAnnotation
   @Retention(RetentionPolicy.RUNTIME)
   public @interface SpecialCharacterReplacements {
-    //
-  }
-
-  @BindingAnnotation
-  @Retention(RetentionPolicy.RUNTIME)
-  public @interface DeckNameReplacements {
     //
   }
 
