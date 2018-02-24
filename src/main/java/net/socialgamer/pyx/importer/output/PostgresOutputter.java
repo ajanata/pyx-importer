@@ -153,6 +153,7 @@ public class PostgresOutputter {
       deck.setActive(true);
       deck.setName(name);
       deck.setDescription(name);
+      deck.setWeight(deckInfos.get(name).getWeight());
       decks.put(name, deck);
     }
     return deck;

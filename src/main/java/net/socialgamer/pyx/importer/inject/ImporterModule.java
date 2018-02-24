@@ -169,7 +169,9 @@ public class ImporterModule extends AbstractModule {
       }
       final String name = props.getProperty(String.format("deckinfo[%d].name", i), id);
       final String watermark = props.getProperty(String.format("deckinfo[%d].watermark", i), "");
-      final DeckInfo info = new DeckInfo(id, name, watermark);
+      final int weight = Integer
+          .parseInt(props.getProperty(String.format("deckinfo[%d].weight", i), "0"));
+      final DeckInfo info = new DeckInfo(id, name, watermark, weight);
       map.put(id, info);
       // include it under any remapped name as well
       map.put(name, info);

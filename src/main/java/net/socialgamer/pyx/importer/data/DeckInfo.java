@@ -27,11 +27,13 @@ public class DeckInfo {
   private final String id;
   private final String name;
   private final String watermark;
+  private final int weight;
 
-  public DeckInfo(final String id, final String name, final String watermark) {
+  public DeckInfo(final String id, final String name, final String watermark, final int weight) {
     this.id = id;
     this.name = name;
     this.watermark = watermark;
+    this.weight = weight;
   }
 
   public String getId() {
@@ -44,5 +46,9 @@ public class DeckInfo {
 
   public String getWatermark() {
     return watermark;
+  }
+
+  public int getWeight() {
+    return weight;
   }
 }
