@@ -39,6 +39,7 @@ import java.util.Properties;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.dialect.Dialect;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.BindingAnnotation;
@@ -105,7 +106,8 @@ public class ImporterModule extends AbstractModule {
 
   @Provides
   @Singleton
-  public SessionFactory provideSessionFactory(@Named("hibernate.dialect") final String dialect,
+  public Configuration providateHibernateConfiguration(
+      @Named("hibernate.dialect") final String dialect,
       @Named("hibernate.driver_class") final String driverClass,
       @Named("hibernate.url") final String connectionUrl,
       @Named("hibernate.username") final String username,
@@ -130,6 +132,26 @@ public class ImporterModule extends AbstractModule {
     config.addAnnotatedClass(PyxWhiteCard.class);
     config.addAnnotatedClass(PyxCardSet.class);
 
+    return config;
+  }
+
+  @Provides
+  @Singleton
+  @Schema
+  public String provideSchema(final Configuration config,
+      @Named("hibernate.dialect") final String dialect) throws Exception {
+    final String[] lines = config
+        .generateSchemaCreationScript((Dialect) Class.forName(dialect).newInstance());
+    final StringBuilder builder = new StringBuilder();
+    for (final String line : lines) {
+      builder.append(line).append(";\n");
+    }
+    return builder.toString();
+  }
+
+  @Provides
+  @Singleton
+  public SessionFactory provideSessionFactory(final Configuration config) {
     return config.buildSessionFactory();
   }
 
@@ -193,6 +215,13 @@ public class ImporterModule extends AbstractModule {
     return opts.wantsSaveToDatabase();
   }
 
+  @Provides
+  @Singleton
+  @OutputSchemaOnly
+  public boolean provideOutputSchemaOnly() {
+    return opts.outputScheamOnly();
+  }
+
   @BindingAnnotation
   @Retention(RetentionPolicy.RUNTIME)
   public @interface SpecialCharacterReplacements {
@@ -208,6 +237,18 @@ public class ImporterModule extends AbstractModule {
   @BindingAnnotation
   @Retention(RetentionPolicy.RUNTIME)
   public @interface SaveToDatabase {
+    //
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface OutputSchemaOnly {
+    //
+  }
+
+  @BindingAnnotation
+  @Retention(RetentionPolicy.RUNTIME)
+  public @interface Schema {
     //
   }
 }

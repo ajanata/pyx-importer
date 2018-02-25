@@ -43,8 +43,8 @@ import net.socialgamer.pyx.importer.data.ParseResult;
 import net.socialgamer.pyx.importer.inject.ImporterModule.SaveToDatabase;
 
 
-public class PostgresOutputter {
-  private static final Logger LOG = Logger.getLogger(PostgresOutputter.class);
+public class HibernateOutputter {
+  private static final Logger LOG = Logger.getLogger(HibernateOutputter.class);
 
   private final BlackCardHelper blackCardHelper;
   private final Map<String, DeckInfo> deckInfos;
@@ -52,7 +52,7 @@ public class PostgresOutputter {
   private final Session session;
 
   @Inject
-  public PostgresOutputter(final BlackCardHelper blackCardHelper,
+  public HibernateOutputter(final BlackCardHelper blackCardHelper,
       final Map<String, DeckInfo> deckInfos, @SaveToDatabase final boolean saveToDatabase,
       final Session session) {
     this.blackCardHelper = blackCardHelper;

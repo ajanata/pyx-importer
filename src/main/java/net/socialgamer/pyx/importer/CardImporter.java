@@ -31,6 +31,7 @@ import java.util.Properties;
 import org.apache.log4j.Logger;
 
 import com.google.inject.Guice;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 
@@ -39,11 +40,33 @@ import net.socialgamer.pyx.importer.filetypes.ConfigurationException;
 import net.socialgamer.pyx.importer.filetypes.ExcelFileType;
 import net.socialgamer.pyx.importer.filetypes.FileType;
 import net.socialgamer.pyx.importer.inject.ImporterModule;
-import net.socialgamer.pyx.importer.output.PostgresOutputter;
+import net.socialgamer.pyx.importer.inject.ImporterModule.OutputSchemaOnly;
+import net.socialgamer.pyx.importer.inject.ImporterModule.Schema;
+import net.socialgamer.pyx.importer.output.HibernateOutputter;
 
 
 public class CardImporter {
   private static final Logger LOG = Logger.getLogger(CardImporter.class);
+
+  private final Properties appProps;
+  private final boolean schemaOnly;
+  private final String schema;
+  private final ExcelFileType.Factory excelFactory;
+  private final ImportHandler.Factory importHandlerFactory;
+  private final HibernateOutputter outputter;
+
+  @Inject
+  public CardImporter(final Properties appProps, @OutputSchemaOnly final boolean schemaOnly,
+      @Schema final String schema,
+      final ExcelFileType.Factory excelFactory, final ImportHandler.Factory importHandlerFactory,
+      final HibernateOutputter outputter) {
+    this.appProps = appProps;
+    this.schemaOnly = schemaOnly;
+    this.schema = schema;
+    this.excelFactory = excelFactory;
+    this.importHandlerFactory = importHandlerFactory;
+    this.outputter = outputter;
+  }
 
   public static void main(final String[] args) throws IOException, InterruptedException {
     // Process command-line options
@@ -54,8 +77,14 @@ public class CardImporter {
 
     // Create injector
     final Injector injector = Guice.createInjector(Stage.PRODUCTION, new ImporterModule(opts));
-    // TODO make this better?
-    final Properties appProps = injector.getInstance(Properties.class);
+    injector.getInstance(CardImporter.class).doImport();
+  }
+
+  private void doImport() {
+    if (schemaOnly) {
+      System.out.println(schema);
+      return;
+    }
 
     final int fileCount = Integer.valueOf(appProps.getProperty("import.file.count", "0"));
     if (fileCount <= 0) {
@@ -64,7 +93,6 @@ public class CardImporter {
     }
 
     // make sure all of the files are valid before we start doing anything
-    final ExcelFileType.Factory excelFactory = injector.getInstance(ExcelFileType.Factory.class);
     final List<FileType> fileTypes = new ArrayList<>(fileCount);
     for (int i = 0; i < fileCount; i++) {
       final String fileType = appProps.getProperty(String.format("import.file[%d].type", i));
@@ -88,10 +116,9 @@ public class CardImporter {
       fileTypes.add(impl);
     }
 
-    final ImportHandler handler = injector.getInstance(ImportHandler.Factory.class)
-        .create(fileTypes);
+    final ImportHandler handler = importHandlerFactory.create(fileTypes);
 
     final ParseResult result = handler.process();
-    injector.getInstance(PostgresOutputter.class).output(result);
+    outputter.output(result);
   }
 }

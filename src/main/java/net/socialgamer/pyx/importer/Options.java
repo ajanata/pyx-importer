@@ -40,6 +40,7 @@ public class Options {
   private final OptionSpec<Boolean> format;
   private final OptionSpec<Void> help;
   private final OptionSpec<Boolean> saveToDb;
+  private final OptionSpec<Void> schemaOnly;
   private final OptionSet opts;
 
   public Options(final String[] args) {
@@ -59,6 +60,7 @@ public class Options {
         .withOptionalArg()
         .ofType(Boolean.class)
         .defaultsTo(Boolean.TRUE);
+    schemaOnly = parser.accepts("schema", "Output the required database schema and exit.");
 
     opts = parser.parse(args);
   }
@@ -85,5 +87,9 @@ public class Options {
 
   public boolean wantsSaveToDatabase() {
     return opts.valueOf(saveToDb);
+  }
+
+  public boolean outputScheamOnly() {
+    return opts.has(schemaOnly);
   }
 }
