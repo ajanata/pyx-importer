@@ -23,6 +23,7 @@
 
 package net.socialgamer.pyx.importer;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -49,6 +50,7 @@ public class RichTextToHtmlFormatHelper {
   private static final char LAST_ASCII_CHARACTER = '~';
 
   private final boolean processFormatting;
+  private final Map<String, String> plainTextToFormatted = new HashMap<>();
 
   /**
    * Replace these characters and character sequences with HTML entities or tags. Iteration order
@@ -71,7 +73,7 @@ public class RichTextToHtmlFormatHelper {
       for (int i = 0; i < rtf.numFormattingRuns(); i++) {
         final String segment = replaceSpecials(
             rtf.getString().substring(rtf.getIndexOfFormattingRun(i),
-                rtf.getIndexOfFormattingRun(i) + rtf.getLengthOfFormattingRun(i)));
+                rtf.getIndexOfFormattingRun(i) + rtf.getLengthOfFormattingRun(i))).trim();
         // will be null for normal font
         final XSSFFont font = rtf.getFontOfFormattingRun(i);
         if (null == font) {
@@ -112,6 +114,7 @@ public class RichTextToHtmlFormatHelper {
             LOG.warn(String.format("Unknown formatting applied to segment '%s' of card '%s'.",
                 segment, rtf.getString()));
           }
+          builder.append(' ');
         }
       }
       formatted = builder.toString();
@@ -122,6 +125,17 @@ public class RichTextToHtmlFormatHelper {
     final String done = normalizeBlanks(formatted).trim();
     if (!done.equals(rtf.getString().trim())) {
       LOG.trace(String.format("Adjusted input string '%s' to '%s'.", rtf.getString(), done));
+    }
+
+    final String trimmedOrig = rtf.getString().trim();
+    if (plainTextToFormatted.containsKey(trimmedOrig)) {
+      if (!plainTextToFormatted.get(trimmedOrig).equals(done)) {
+        LOG.warn(
+            String.format("Input string '%s' formatted to '%s', but previously formatted to '%s'",
+                trimmedOrig, done, plainTextToFormatted.get(trimmedOrig)));
+      }
+    } else {
+      plainTextToFormatted.put(rtf.getString(), done);
     }
     return done;
   }
