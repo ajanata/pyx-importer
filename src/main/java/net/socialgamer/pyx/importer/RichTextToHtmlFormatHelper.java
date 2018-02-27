@@ -114,8 +114,8 @@ public class RichTextToHtmlFormatHelper {
             LOG.warn(String.format("Unknown formatting applied to segment '%s' of card '%s'.",
                 segment, rtf.getString()));
           }
-          builder.append(' ');
         }
+        builder.append(' ');
       }
       formatted = builder.toString();
     } else {
