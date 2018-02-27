@@ -23,8 +23,8 @@
 
 package net.socialgamer.pyx.importer;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -59,9 +59,10 @@ public class ImportHandler {
   }
 
   public ParseResult process() {
-    final Set<String> decks = new HashSet<>();
-    final Map<String, Set<String>> blackCards = new HashMap<>();
-    final Map<String, Set<String>> whiteCards = new HashMap<>();
+    // so we iterate over decks in the same order as they appeared in sources
+    final Set<String> decks = new LinkedHashSet<>();
+    final Map<String, Set<String>> blackCards = new LinkedHashMap<>();
+    final Map<String, Set<String>> whiteCards = new LinkedHashMap<>();
 
     for (final FileType fileType : fileTypes) {
       final ParseResult result = fileType.process();

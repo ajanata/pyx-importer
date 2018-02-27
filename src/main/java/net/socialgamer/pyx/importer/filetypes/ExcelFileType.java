@@ -25,7 +25,7 @@ package net.socialgamer.pyx.importer.filetypes;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -128,8 +128,9 @@ public class ExcelFileType extends FileType {
 
   @Override
   public ParseResult process() {
-    final Map<String, Set<String>> blackCardsByDeck = new HashMap<>();
-    final Map<String, Set<String>> whiteCardsByDeck = new HashMap<>();
+    // so we iterate over decks in the same order as the sheets
+    final Map<String, Set<String>> blackCardsByDeck = new LinkedHashMap<>();
+    final Map<String, Set<String>> whiteCardsByDeck = new LinkedHashMap<>();
 
     final File file = new File(getProp("name"));
     try (final Workbook workbook = new XSSFWorkbook(file)) {

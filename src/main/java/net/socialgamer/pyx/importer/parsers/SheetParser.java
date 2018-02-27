@@ -24,8 +24,8 @@
 package net.socialgamer.pyx.importer.parsers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,7 +80,8 @@ public class SheetParser implements Parser {
   @Override
   public Map<String, Set<String>> getCards() {
     final List<String> columnHeadings = new ArrayList<>();
-    final Map<String, Set<String>> values = new HashMap<>();
+    // so we iterate decks in the same order as the sheet
+    final Map<String, Set<String>> values = new LinkedHashMap<>();
 
     for (final Row row : sheet) {
       final boolean firstRow = columnHeadings.isEmpty();
