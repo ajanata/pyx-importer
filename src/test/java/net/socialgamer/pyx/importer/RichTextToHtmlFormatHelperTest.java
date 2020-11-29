@@ -93,7 +93,7 @@ public class RichTextToHtmlFormatHelperTest {
     rtf.append("Italic. ", italic);
     rtf.append("Underline.", underline);
     rtf.append(" More plain.");
-    assertEquals("Plain. <i>Italic. </i><u>Underline.</u> More plain.", helper.format(rtf));
+    assertEquals("Plain. <i>Italic.</i> <u>Underline.</u> More plain.", helper.format(rtf));
   }
 
   @Test
